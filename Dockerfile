@@ -23,7 +23,7 @@ RUN --mount=from=source,src=/src/repo/proxy/src,target=/tmp/src \
     install -Dm755 /tmp/src/healthcheck.sh /usr/local/bin/healthcheck.sh; \
     install -Dm644 /tmp/src/proxy_config.cfg /usr/local/etc/haproxy/haproxy.cfg; \
     cp /usr/local/etc/haproxy/haproxy.cfg /usr/local/etc/haproxy/haproxy.cfg.template; \
-    printf '%s\n' '#!/bin/bash' 'set -e' 'cp /usr/local/etc/haproxy/haproxy.cfg.template /usr/local/etc/haproxy/haproxy.cfg' 'exec /usr/local/bin/set_public_ip_and_start.sh' > /usr/local/bin/start_with_cfg_reset.sh; \
+    printf '%s\n' '#!/bin/bash' 'set -e' 'cp /usr/local/etc/haproxy/haproxy.cfg.template /usr/local/etc/haproxy/haproxy.cfg' 'rm -f /etc/haproxy/ssl/proxy.whatsapp.net.pem' 'echo "[PROXYHOST] HAProxy listen ports: 80/tcp, 8080/tcp, 443/tcp, 8443/tcp, 5222/tcp, 8222/tcp, 8199/tcp, 587/tcp, 7777/tcp"' 'exec /usr/local/bin/set_public_ip_and_start.sh' > /usr/local/bin/start_with_cfg_reset.sh; \
     chmod +x /usr/local/bin/start_with_cfg_reset.sh; \
     mkdir -p /etc/haproxy/ssl /root/certs; \
     sed -i 's|/home/haproxy/certs|/root/certs|g' /usr/local/bin/set_public_ip_and_start.sh; \
