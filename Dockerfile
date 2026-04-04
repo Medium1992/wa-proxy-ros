@@ -25,14 +25,9 @@ RUN --mount=from=source,src=/src/repo/proxy/src,target=/tmp/src \
     cp /usr/local/etc/haproxy/haproxy.cfg /usr/local/etc/haproxy/haproxy.cfg.template; \
     printf '%s\n' '#!/bin/bash' 'set -e' 'cp /usr/local/etc/haproxy/haproxy.cfg.template /usr/local/etc/haproxy/haproxy.cfg' 'exec /usr/local/bin/set_public_ip_and_start.sh' > /usr/local/bin/start_with_cfg_reset.sh; \
     chmod +x /usr/local/bin/start_with_cfg_reset.sh; \
-    mkdir -p /work /etc/haproxy/ssl /root/certs; \
-    cd /work; \
-    /usr/local/bin/generate-certs.sh; \
-    mv /work/proxy.whatsapp.net.pem /etc/haproxy/ssl/proxy.whatsapp.net.pem; \
+    mkdir -p /etc/haproxy/ssl /root/certs; \
     sed -i 's|/home/haproxy/certs|/root/certs|g' /usr/local/bin/set_public_ip_and_start.sh; \
-    sed -i '/chown haproxy:haproxy/d' /usr/local/bin/set_public_ip_and_start.sh; \
-    haproxy -c -V -f /usr/local/etc/haproxy/haproxy.cfg; \
-    rm -rf /work
+    sed -i '/chown haproxy:haproxy/d' /usr/local/bin/set_public_ip_and_start.sh
 
 HEALTHCHECK --interval=10s --start-period=5s CMD bash /usr/local/bin/healthcheck.sh
 CMD ["/usr/local/bin/start_with_cfg_reset.sh"]
