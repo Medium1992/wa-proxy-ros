@@ -1,0 +1,121 @@
+name: Build and Publish Root Image
+
+on:
+  schedule:
+    - cron: "0 18 * * *"
+  workflow_dispatch:
+
+jobs:
+  check-and-build:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      packages: write
+    env:
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      PACKAGE_OWNER: medium1992
+      PACKAGE_NAME: wa-proxy-ros
+      PACKAGE_NAME_ENCODED: wa-proxy-ros
+
+    steps:
+      - name: Install jq
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y jq
+
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Get latest upstream ref
+        id: latest_versions
+        run: |
+          set -euo pipefail
+          RELEASE_TAG=$(curl -fsSL https://api.github.com/repos/WhatsApp/proxy/releases/latest | jq -r '.tag_name // empty')
+          if [ -n "${RELEASE_TAG}" ] && [ "${RELEASE_TAG}" != "null" ]; then
+            UPSTREAM_REF="${RELEASE_TAG}"
+          else
+            UPSTREAM_REF=$(git ls-remote --tags --sort='-version:refname' https://github.com/WhatsApp/proxy.git 'v*' | head -n1 | awk -F'/' '{print $3}')
+            if [ -z "${UPSTREAM_REF}" ]; then
+              UPSTREAM_REF="main"
+            fi
+          fi
+          echo "whatsapp_proxy=${UPSTREAM_REF}" >> "$GITHUB_ENV"
+
+      - name: Compare with VERSIONS
+        id: check_versions
+        run: |
+          set -euo pipefail
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            echo "Manual run -> force build"
+            echo "build_needed=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          if [ ! -f VERSIONS ]; then
+            echo "No VERSIONS file, build needed"
+            echo "build_needed=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          CURRENT=$(awk -F= '/^whatsapp_proxy=/{print $2}' VERSIONS | tr -d '\r\n' || true)
+          if [ "${CURRENT}" != "${{ env.whatsapp_proxy }}" ]; then
+            echo "build_needed=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "build_needed=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Update VERSIONS
+        if: steps.check_versions.outputs.build_needed == 'true'
+        run: |
+          echo "whatsapp_proxy=${{ env.whatsapp_proxy }}" > VERSIONS
+
+      - name: Set up QEMU
+        if: steps.check_versions.outputs.build_needed == 'true'
+        uses: docker/setup-qemu-action@v3
+
+      - name: Set up Docker Buildx
+        if: steps.check_versions.outputs.build_needed == 'true'
+        uses: docker/setup-buildx-action@v3
+        with:
+          driver: docker-container
+          driver-opts: |
+            network=host
+
+      - name: Login to GitHub Container Registry
+        if: steps.check_versions.outputs.build_needed == 'true'
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      # - name: Login to Docker Hub
+      #   if: steps.check_versions.outputs.build_needed == 'true'
+      #   uses: docker/login-action@v3
+      #   with:
+      #     username: ${{ secrets.DOCKERHUB_USERNAME }}
+      #     password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - name: Build and push multi-arch
+        if: steps.check_versions.outputs.build_needed == 'true'
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: ./proxy/Dockerfile.root
+          platforms: linux/amd64,linux/arm64,linux/arm/v7
+          push: true
+          build-args: |
+            UPSTREAM_REF=${{ env.whatsapp_proxy }}
+          tags: |
+            ghcr.io/${{ env.PACKAGE_OWNER }}/${{ env.PACKAGE_NAME }}:${{ env.whatsapp_proxy }}
+            ghcr.io/${{ env.PACKAGE_OWNER }}/${{ env.PACKAGE_NAME }}:latest
+#            ${{ env.PACKAGE_OWNER }}/${{ env.PACKAGE_NAME }}:${{ env.whatsapp_proxy }}
+#            ${{ env.PACKAGE_OWNER }}/${{ env.PACKAGE_NAME }}:latest
+
+      - name: Commit and push VERSIONS
+        if: steps.check_versions.outputs.build_needed == 'true'
+        run: |
+          git config --global user.name 'github-actions[bot]'
+          git config --global user.email 'github-actions[bot]@users.noreply.github.com'
+          git add VERSIONS
+          git commit -m "Auto-update: VERSIONS (${{ env.whatsapp_proxy }})" || exit 0
+          git push
