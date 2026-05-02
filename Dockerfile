@@ -33,61 +33,141 @@ RUN --mount=from=source,src=/src/repo/proxy/src,target=/tmp/src \
 set -e
 
 CONFIG_FILE="/usr/local/etc/haproxy/haproxy.cfg"
+CONFIG_TEMPLATE="/usr/local/etc/haproxy/haproxy.cfg.template"
+PID_FILE="/run/haproxy.pid"
+IP_CHECK_INTERVAL="${IP_CHECK_INTERVAL:-15}"
+IP_CHANGE_STABLE_SECONDS="${IP_CHANGE_STABLE_SECONDS:-45}"
+PUBLIC_IP_MODE="${PUBLIC_IP_MODE:-auto}"
 
 function fetch() {
   curl --silent --show-error --fail --ipv4 --max-time 2 "$@"
 }
 
-if [[ $PUBLIC_IP == '' ]]
-then
-    echo "[PROXYHOST] No public IP address was supplied as an environment variable."
-fi
+function detect_public_ip() {
+  local detected_ip=""
+  if [[ "${PUBLIC_IP_MODE}" == "fixed" && -n "${PUBLIC_IP}" ]]; then
+      detected_ip="${PUBLIC_IP}"
+      detected_ip="$(echo -n "${detected_ip}" | tr -d '\r\n' | xargs)"
+      echo "${detected_ip}"
+      return 0
+  fi
 
-if [[ $PUBLIC_IP == '' ]]
-then
-    PUBLIC_IP=$(fetch http://169.254.169.254/latest/meta-data/public-ipv4 || true)
-    if [[ $PUBLIC_IP == '' ]]
-    then
-        echo "[PROXYHOST] Failed to retrieve public ip address from AWS URI within 2s"
-    fi
-fi
+  if [[ -z "${detected_ip}" ]]; then
+      detected_ip="$(fetch http://169.254.169.254/latest/meta-data/public-ipv4 || true)"
+      if [[ -z "${detected_ip}" ]]; then
+          echo "[PROXYHOST] Failed to retrieve public ip address from AWS URI within 2s"
+      fi
+  fi
 
-if [[ $PUBLIC_IP == '' ]]
-then
-    urls=(
-        'https://icanhazip.com/'
-        'https://ipinfo.io/ip'
-        'https://domains.google.com/checkip'
-    )
-    for url in "${urls[@]}"; do
-        PUBLIC_IP="$(fetch "${url}")" && break
-    done
-    if [[ $PUBLIC_IP == '' ]]
-    then
-        echo "[PROXYHOST] Failed to retrieve public ip address from third-party sources within 2s"
-    fi
-fi
+  if [[ -z "${detected_ip}" ]]; then
+      local urls=(
+          'https://icanhazip.com/'
+          'https://ipinfo.io/ip'
+          'https://domains.google.com/checkip'
+      )
+      local url
+      for url in "${urls[@]}"; do
+          detected_ip="$(fetch "${url}" || true)"
+          if [[ -n "${detected_ip}" ]]; then
+              break
+          fi
+      done
+      if [[ -z "${detected_ip}" ]]; then
+          echo "[PROXYHOST] Failed to retrieve public ip address from third-party sources within 2s"
+      fi
+  fi
 
-PUBLIC_IP="$(echo -n "$PUBLIC_IP" | tr -d '\r\n' | xargs)"
+  if [[ -z "${detected_ip}" && -n "${PUBLIC_IP}" ]]; then
+      detected_ip="${PUBLIC_IP}"
+      echo "[PROXYHOST] Falling back to PUBLIC_IP from environment"
+  fi
 
-if [[ -n "$PUBLIC_IP" ]]
-then
-    if [[ "$PUBLIC_IP" == *:* ]]
-    then
-        DST_LINE="tcp-request connection set-dst ipv6($PUBLIC_IP)"
-    else
-        DST_LINE="tcp-request connection set-dst ipv4($PUBLIC_IP)"
-    fi
-    echo "[PROXYHOST] Public IP address ($PUBLIC_IP) in-place replacement occurring on $CONFIG_FILE"
-    sed -i "s/#PUBLIC\_IP/${DST_LINE}/g" "$CONFIG_FILE"
-fi
+  detected_ip="$(echo -n "${detected_ip}" | tr -d '\r\n' | xargs)"
+  echo "${detected_ip}"
+}
+
+function render_haproxy_config() {
+  local ip="$1"
+  cp "${CONFIG_TEMPLATE}" "${CONFIG_FILE}"
+  if [[ -n "${ip}" ]]; then
+      local dst_line=""
+      if [[ "${ip}" == *:* ]]; then
+          dst_line="tcp-request connection set-dst ipv6(${ip})"
+      else
+          dst_line="tcp-request connection set-dst ipv4(${ip})"
+      fi
+      sed -i "s/#PUBLIC\_IP/${dst_line}/g" "${CONFIG_FILE}"
+  else
+      sed -i "s/#PUBLIC\_IP//g" "${CONFIG_FILE}"
+  fi
+}
+
+function start_haproxy() {
+  echo "[PROXYHOST] Starting HAProxy"
+  haproxy -D -f "${CONFIG_FILE}" -p "${PID_FILE}"
+}
+
+function reload_haproxy() {
+  local old_pid
+  old_pid="$(cat "${PID_FILE}")"
+  echo "[PROXYHOST] Reloading HAProxy (old pid ${old_pid})"
+  haproxy -D -f "${CONFIG_FILE}" -p "${PID_FILE}" -sf "${old_pid}"
+}
 
 pushd /root/certs
 /usr/local/bin/generate-certs.sh
 mv proxy.whatsapp.net.pem /etc/haproxy/ssl/proxy.whatsapp.net.pem
 popd
 
-haproxy -f "$CONFIG_FILE"
+current_ip="$(detect_public_ip)"
+echo "[PROXYHOST] Initial detected public IP: ${current_ip:-<empty>}"
+render_haproxy_config "${current_ip}"
+start_haproxy
+
+candidate_ip=""
+candidate_since=0
+
+while true; do
+  sleep "${IP_CHECK_INTERVAL}"
+
+  if [[ ! -s "${PID_FILE}" ]] || ! kill -0 "$(cat "${PID_FILE}" 2>/dev/null)" 2>/dev/null; then
+      echo "[PROXYHOST] HAProxy process not found, starting again"
+      render_haproxy_config "${current_ip}"
+      start_haproxy
+  fi
+
+  latest_ip="$(detect_public_ip)"
+
+  if [[ "${latest_ip}" == "${current_ip}" ]]; then
+      candidate_ip=""
+      candidate_since=0
+      continue
+  fi
+
+  now="$(date +%s)"
+  if [[ "${latest_ip}" != "${candidate_ip}" ]]; then
+      candidate_ip="${latest_ip}"
+      candidate_since="${now}"
+      echo "[PROXYHOST] IP change candidate detected: ${current_ip:-<empty>} -> ${candidate_ip:-<empty>}"
+      continue
+  fi
+
+  elapsed=$((now - candidate_since))
+  if (( elapsed < IP_CHANGE_STABLE_SECONDS )); then
+      continue
+  fi
+
+  echo "[PROXYHOST] IP change confirmed after ${elapsed}s: ${current_ip:-<empty>} -> ${latest_ip:-<empty>}"
+  render_haproxy_config "${latest_ip}"
+  if [[ -s "${PID_FILE}" ]]; then
+      reload_haproxy
+  else
+      start_haproxy
+  fi
+  current_ip="${latest_ip}"
+  candidate_ip=""
+  candidate_since=0
+done
 EOF
 
 RUN chmod +x /usr/local/bin/set_public_ip_and_start.sh
