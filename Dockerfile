@@ -43,6 +43,10 @@ function fetch() {
   curl --silent --show-error --fail --ipv4 --max-time 2 "$@"
 }
 
+function log() {
+  echo "$@" >&2
+}
+
 function detect_public_ip() {
   local detected_ip=""
   if [[ "${PUBLIC_IP_MODE}" == "fixed" && -n "${PUBLIC_IP}" ]]; then
@@ -55,7 +59,7 @@ function detect_public_ip() {
   if [[ -z "${detected_ip}" ]]; then
       detected_ip="$(fetch http://169.254.169.254/latest/meta-data/public-ipv4 || true)"
       if [[ -z "${detected_ip}" ]]; then
-          echo "[PROXYHOST] Failed to retrieve public ip address from AWS URI within 2s"
+          log "[PROXYHOST] Failed to retrieve public ip address from AWS URI within 2s"
       fi
   fi
 
@@ -73,13 +77,13 @@ function detect_public_ip() {
           fi
       done
       if [[ -z "${detected_ip}" ]]; then
-          echo "[PROXYHOST] Failed to retrieve public ip address from third-party sources within 2s"
+          log "[PROXYHOST] Failed to retrieve public ip address from third-party sources within 2s"
       fi
   fi
 
   if [[ -z "${detected_ip}" && -n "${PUBLIC_IP}" ]]; then
       detected_ip="${PUBLIC_IP}"
-      echo "[PROXYHOST] Falling back to PUBLIC_IP from environment"
+      log "[PROXYHOST] Falling back to PUBLIC_IP from environment"
   fi
 
   detected_ip="$(echo -n "${detected_ip}" | tr -d '\r\n' | xargs)"
@@ -91,14 +95,16 @@ function render_haproxy_config() {
   cp "${CONFIG_TEMPLATE}" "${CONFIG_FILE}"
   if [[ -n "${ip}" ]]; then
       local dst_line=""
+      local escaped_dst_line=""
       if [[ "${ip}" == *:* ]]; then
           dst_line="tcp-request connection set-dst ipv6(${ip})"
       else
           dst_line="tcp-request connection set-dst ipv4(${ip})"
       fi
-      sed -i "s/#PUBLIC\_IP/${dst_line}/g" "${CONFIG_FILE}"
+      escaped_dst_line="$(printf '%s' "${dst_line}" | sed 's/[&|]/\\&/g')"
+      sed -i "s|#PUBLIC\_IP|${escaped_dst_line}|g" "${CONFIG_FILE}"
   else
-      sed -i "s/#PUBLIC\_IP//g" "${CONFIG_FILE}"
+      sed -i "s|#PUBLIC\_IP||g" "${CONFIG_FILE}"
   fi
 }
 
@@ -120,7 +126,7 @@ mv proxy.whatsapp.net.pem /etc/haproxy/ssl/proxy.whatsapp.net.pem
 popd
 
 current_ip="$(detect_public_ip)"
-echo "[PROXYHOST] Initial detected public IP: ${current_ip:-<empty>}"
+log "[PROXYHOST] Initial detected public IP: ${current_ip:-<empty>}"
 render_haproxy_config "${current_ip}"
 start_haproxy
 
@@ -148,7 +154,7 @@ while true; do
   if [[ "${latest_ip}" != "${candidate_ip}" ]]; then
       candidate_ip="${latest_ip}"
       candidate_since="${now}"
-      echo "[PROXYHOST] IP change candidate detected: ${current_ip:-<empty>} -> ${candidate_ip:-<empty>}"
+      log "[PROXYHOST] IP change candidate detected: ${current_ip:-<empty>} -> ${candidate_ip:-<empty>}"
       continue
   fi
 
@@ -157,7 +163,7 @@ while true; do
       continue
   fi
 
-  echo "[PROXYHOST] IP change confirmed after ${elapsed}s: ${current_ip:-<empty>} -> ${latest_ip:-<empty>}"
+  log "[PROXYHOST] IP change confirmed after ${elapsed}s: ${current_ip:-<empty>} -> ${latest_ip:-<empty>}"
   render_haproxy_config "${latest_ip}"
   if [[ -s "${PID_FILE}" ]]; then
       reload_haproxy
