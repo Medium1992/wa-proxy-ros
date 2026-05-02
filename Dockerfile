@@ -89,7 +89,8 @@ popd
 
 haproxy -f "$CONFIG_FILE"
 EOF
-    chmod +x /usr/local/bin/set_public_ip_and_start.sh
+
+RUN chmod +x /usr/local/bin/set_public_ip_and_start.sh
 
 HEALTHCHECK --interval=10s --start-period=5s CMD bash /usr/local/bin/healthcheck.sh
 CMD ["/usr/local/bin/start_with_cfg_reset.sh"]
