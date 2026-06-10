@@ -39,21 +39,19 @@ The GitHub Actions workflow publishes images to GHCR and Docker Hub only when a 
 
 ## 🔌 Ports
 
-HAProxy listens on:
+For normal WhatsApp client use, point WhatsApp to the container IP as a proxy. You usually do not need to expose every HAProxy listener.
 
 | Port | Purpose |
 |---|---|
-| `80/tcp` | HTTP proxy frontend. |
-| `8080/tcp` | HTTP frontend with PROXY protocol. |
-| `443/tcp` | HTTPS proxy frontend. |
-| `8443/tcp` | HTTPS frontend with PROXY protocol. |
-| `5222/tcp` | XMPP frontend. |
-| `8222/tcp` | XMPP frontend with PROXY protocol. |
-| `587/tcp` | WhatsApp.net frontend. |
-| `7777/tcp` | WhatsApp.net alternative frontend. |
-| `8199/tcp` | HAProxy stats and healthcheck endpoint. |
+| `443/tcp` | Main WhatsApp Proxy port for chats. |
+| `587/tcp` | WhatsApp Proxy port for media. |
+| `80/tcp` | Additional HTTP entrypoint kept for upstream compatibility. |
+| `5222/tcp` | Additional XMPP entrypoint kept for upstream compatibility. |
+| `7777/tcp` | Alternative `whatsapp.net` entrypoint kept by upstream. |
+| `8080/tcp`, `8443/tcp`, `8222/tcp` | PROXY protocol entrypoints. Regular WhatsApp clients do not use these directly. |
+| `8199/tcp` | HAProxy stats and healthcheck endpoint. Do not publish it to WAN. |
 
-Expose only the ports you need from the WAN side. Keep `8199` private unless you intentionally need stats access.
+The primary target scenario for this image is LAN-only use. If you need access from outside your LAN, publish only the ports your clients actually need, usually `443/tcp` and `587/tcp`. Keep `8199/tcp` local.
 
 ## ⚙️ Environment Variables
 
@@ -114,6 +112,8 @@ For dynamic public IP detection, set:
 ## 📝 Notes
 
 - `PUBLIC_IP` does not make HAProxy listen on that address. It controls HAProxy `tcp-request connection set-dst ...`, which helps when traffic is forwarded through NAT, a load balancer, or another edge path.
+- In WhatsApp, use the container address or the external forwarded address in `Settings -> Storage and data -> Proxy`.
+- WhatsApp Proxy is intended for chats and media; this image does not claim WhatsApp call support.
 - In `auto` mode the image detects public IPv4 through common check-IP services every `IP_CHECK_INTERVAL` seconds. If detection returns an empty value, the current HAProxy config is kept unchanged.
 - If your environment is IPv6-only, set `PUBLIC_IP_MODE=fixed` and provide `PUBLIC_IP`.
 - HAProxy intentionally runs as root for RouterOS privileged-port publishing; the config declares `user root` and `chroot /` explicitly to avoid misleading startup warnings.
