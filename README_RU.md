@@ -60,7 +60,7 @@ HAProxy слушает:
 | ENV | По умолчанию | Описание |
 |---|---|---|
 | `PUBLIC_IP_MODE` | `auto` | `auto` определяет текущий public IP и делает reload HAProxy при смене. `fixed` всегда использует `PUBLIC_IP`. |
-| `PUBLIC_IP` | пусто | Фиксированный public IP или fallback, если автоопределение не сработало. Поддерживаются IPv4 и IPv6. |
+| `PUBLIC_IP` | пусто | Фиксированный public IP или fallback, если автоопределение не сработало. Поддерживается IPv4. |
 | `IP_CHECK_INTERVAL` | `15` | Интервал проверки public IP в секундах. |
 | `IP_CHANGE_STABLE_SECONDS` | `45` | Сколько секунд новый IP должен быть стабильным перед reload HAProxy. |
 | `SSL_DNS` | пусто | Дополнительные DNS SAN для upstream-скрипта генерации сертификата. |
