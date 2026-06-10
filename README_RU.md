@@ -12,7 +12,7 @@ Multi-arch Docker-контейнер для **MikroTik RouterOS** на базе 
 ![Platforms](https://img.shields.io/badge/arch-amd64%20%7C%20arm64%20%7C%20armv7-blue)
 [![Telegram](https://img.shields.io/badge/Telegram-group-blue?logo=telegram)](https://t.me/+96HVPF3Ww6o3YTNi)
 
-## Возможности
+## ✨ Возможности
 
 - Multi-arch образ: `amd64`, `arm64`, `arm/v7`.
 - Сборка из актуального релиза WhatsApp Proxy, который записан в `VERSIONS`.
@@ -20,10 +20,8 @@ Multi-arch Docker-контейнер для **MikroTik RouterOS** на базе 
 - Поддерживается IPv4 и IPv6 для HAProxy `set-dst`.
 - В `auto` режиме образ отслеживает смену public IP и мягко перезагружает HAProxy после стабилизации нового адреса.
 - При каждом старте `haproxy.cfg` восстанавливается из шаблона.
-- Образы публикуются в GHCR и Docker Hub.
-- GitHub Actions собирает образ только при новой upstream-версии или ручном запуске workflow.
 
-## Теги Образов
+## 🐳 Теги Образов
 
 Образы публикуются в:
 
@@ -37,7 +35,9 @@ Multi-arch Docker-контейнер для **MikroTik RouterOS** на базе 
 | `latest` | Последний собранный релиз WhatsApp Proxy для RouterOS. |
 | `whatsapp-proxy-chart-X.Y.Z` | Образ, собранный из конкретного upstream-тега WhatsApp Proxy. |
 
-## Порты
+GitHub Actions публикует образы в GHCR и Docker Hub только при появлении новой upstream-версии или при ручном запуске workflow.
+
+## 🔌 Порты
 
 HAProxy слушает:
 
@@ -55,7 +55,7 @@ HAProxy слушает:
 
 Снаружи открывайте только нужные порты. `8199` лучше оставлять доступным только из локальной сети.
 
-## Переменные Окружения
+## ⚙️ Переменные Окружения
 
 | ENV | По умолчанию | Описание |
 |---|---|---|
@@ -69,7 +69,7 @@ HAProxy слушает:
 
 Если public IP не удалось определить и `PUBLIC_IP` не задан, контейнер запускает HAProxy без правила `set-dst`, а не падает.
 
-## Установка В RouterOS
+## 🛠 Установка В RouterOS
 
 Сначала включите поддержку контейнеров:
 
@@ -93,7 +93,9 @@ HAProxy слушает:
 /container/add remote-image=ghcr.io/medium1992/wa-proxy-ros:latest interface=WaProxyRoS envlists=WaProxyRoS root-dir=/Containers/WaProxyRoS start-on-boot=yes comment="WaProxyRoS"
 ```
 
-После этого пробросьте нужные WAN-порты на IP контейнера обычными правилами firewall/NAT в RouterOS.
+Основной сценарий использования контейнера - внутри локальной сети: клиенты LAN подключаются к контейнеру через veth-адрес RouterOS или через локальные правила проброса.
+
+Если нужен доступ к этому прокси-контейнеру извне локальной сети, пробросьте только необходимые WAN-порты на IP контейнера обычными правилами firewall/NAT в RouterOS.
 
 Для фиксированного public IP:
 
@@ -102,14 +104,14 @@ HAProxy слушает:
 /container/envs/add list=WaProxyRoS key=PUBLIC_IP value=203.0.113.10
 ```
 
-## Заметки
+## 📝 Заметки
 
 - `PUBLIC_IP` не заставляет HAProxy слушать на этом адресе. Он управляет правилом HAProxy `tcp-request connection set-dst ...`, которое полезно при NAT, load balancer или другом внешнем входе.
 - В `auto` режиме public IP определяется через IPv4 check-IP сервисы. Если среда IPv6-only, лучше задать `PUBLIC_IP_MODE=fixed` и указать `PUBLIC_IP`.
 - Reload HAProxy мягкий: новые подключения идут в новый процесс, существующие соединения доживают в старом.
 - Образ сохраняет upstream-конфиг WhatsApp Proxy, но меняет права/пути/старт процессов под RouterOS.
 
-## Поддержка Проекта
+## 💖 Поддержка Проекта
 
 Если проект сэкономил время на настройке MikroTik:
 
