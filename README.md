@@ -12,7 +12,7 @@ This image keeps the container RouterOS-friendly: HAProxy starts as root, certif
 ![Platforms](https://img.shields.io/badge/arch-amd64%20%7C%20arm64%20%7C%20armv7-blue)
 [![Telegram](https://img.shields.io/badge/Telegram-group-blue?logo=telegram)](https://t.me/+96HVPF3Ww6o3YTNi)
 
-## Features
+## ✨ Features
 
 - Multi-arch image: `amd64`, `arm64`, `arm/v7`.
 - Based on the latest WhatsApp Proxy release tracked in `VERSIONS`.
@@ -20,10 +20,8 @@ This image keeps the container RouterOS-friendly: HAProxy starts as root, certif
 - Supports IPv4 and IPv6 public IP detection for HAProxy `set-dst`.
 - Can monitor public IP changes and softly reload HAProxy after the new IP is stable.
 - Resets `haproxy.cfg` from the template on every container start.
-- Publishes images to both GHCR and Docker Hub.
-- GitHub Actions only rebuilds on upstream changes or manual workflow runs.
 
-## Image Tags
+## 🐳 Image Tags
 
 Images are published to:
 
@@ -37,7 +35,9 @@ Available tags:
 | `latest` | Latest built WhatsApp Proxy release for RouterOS. |
 | `whatsapp-proxy-chart-X.Y.Z` | Image built from a specific upstream WhatsApp Proxy release tag. |
 
-## Ports
+The GitHub Actions workflow publishes images to GHCR and Docker Hub only when a new upstream version appears or when the workflow is started manually.
+
+## 🔌 Ports
 
 HAProxy listens on:
 
@@ -55,7 +55,7 @@ HAProxy listens on:
 
 Expose only the ports you need from the WAN side. Keep `8199` private unless you intentionally need stats access.
 
-## Environment Variables
+## ⚙️ Environment Variables
 
 | ENV | Default | Description |
 |---|---|---|
@@ -69,7 +69,7 @@ Expose only the ports you need from the WAN side. Keep `8199` private unless you
 
 If no public IP can be detected and `PUBLIC_IP` is empty, the container starts HAProxy without the `set-dst` rule instead of failing.
 
-## RouterOS Install
+## 🛠 RouterOS Install
 
 Enable container support first:
 
@@ -93,7 +93,9 @@ Example container interface and environment:
 /container/add remote-image=ghcr.io/medium1992/wa-proxy-ros:latest interface=WaProxyRoS envlists=WaProxyRoS root-dir=/Containers/WaProxyRoS start-on-boot=yes comment="WaProxyRoS"
 ```
 
-Then publish the required WAN ports to the container IP with your normal RouterOS firewall/NAT rules.
+The main intended scenario is local network use: clients inside your LAN connect to the container through the RouterOS veth address or through local RouterOS forwarding rules.
+
+If you need access to this proxy from outside your local network, publish only the required WAN ports to the container IP with your normal RouterOS firewall/NAT rules.
 
 For a static public IP, use:
 
@@ -102,14 +104,14 @@ For a static public IP, use:
 /container/envs/add list=WaProxyRoS key=PUBLIC_IP value=203.0.113.10
 ```
 
-## Notes
+## 📝 Notes
 
 - `PUBLIC_IP` does not make HAProxy listen on that address. It controls HAProxy `tcp-request connection set-dst ...`, which helps when traffic is forwarded through NAT, a load balancer, or another edge path.
 - In `auto` mode the image detects public IPv4 through common check-IP services. If your environment is IPv6-only, set `PUBLIC_IP_MODE=fixed` and provide `PUBLIC_IP`.
 - HAProxy reload is soft: new connections move to the new process, while existing sessions are allowed to drain.
 - The image follows upstream WhatsApp Proxy config, but keeps process ownership and paths suitable for RouterOS containers.
 
-## Support
+## 💖 Support
 
 If this project saved you time configuring MikroTik:
 
