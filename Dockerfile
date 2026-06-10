@@ -162,6 +162,20 @@ log "[PROXYHOST] Initial detected public IP: ${current_ip:-<empty>}"
 render_haproxy_config "${current_ip}"
 start_haproxy
 
+if [[ "${PUBLIC_IP_MODE}" == "fixed" ]]; then
+    log "[PROXYHOST] PUBLIC_IP_MODE=fixed, external IP checks are disabled"
+    while true; do
+      sleep "${IP_CHECK_INTERVAL}" &
+      wait "$!" || true
+
+      if [[ ! -s "${PID_FILE}" ]] || ! kill -0 "$(cat "${PID_FILE}" 2>/dev/null)" 2>/dev/null; then
+          echo "[PROXYHOST] HAProxy process not found, starting again"
+          render_haproxy_config "${current_ip}"
+          start_haproxy
+      fi
+    done
+fi
+
 candidate_ip=""
 candidate_since=0
 
@@ -214,5 +228,6 @@ EOF
 
 RUN chmod +x /usr/local/bin/set_public_ip_and_start.sh
 
+STOPSIGNAL SIGKILL
 HEALTHCHECK --interval=10s --start-period=5s CMD bash /usr/local/bin/healthcheck.sh
 CMD ["/usr/local/bin/start_with_cfg_reset.sh"]
