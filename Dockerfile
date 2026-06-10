@@ -47,6 +47,17 @@ function log() {
   echo "$@" >&2
 }
 
+function is_valid_ip() {
+  local ip="$1"
+  if [[ "${ip}" =~ ^((25[0-5]|2[0-4][0-9]|1[0-9]{2}|[1-9]?[0-9])\.){3}(25[0-5]|2[0-4][0-9]|1[0-9]{2}|[1-9]?[0-9])$ ]]; then
+      return 0
+  fi
+  if [[ "${ip}" =~ ^[0-9A-Fa-f:]+$ && "${ip}" == *:* ]]; then
+      return 0
+  fi
+  return 1
+}
+
 function detect_public_ip() {
   local detected_ip=""
   if [[ "${PUBLIC_IP_MODE}" == "fixed" && -n "${PUBLIC_IP}" ]]; then
@@ -87,6 +98,10 @@ function detect_public_ip() {
   fi
 
   detected_ip="$(echo -n "${detected_ip}" | tr -d '\r\n' | xargs)"
+  if [[ -n "${detected_ip}" ]] && ! is_valid_ip "${detected_ip}"; then
+      log "[PROXYHOST] Ignoring invalid public IP response: ${detected_ip}"
+      detected_ip=""
+  fi
   echo "${detected_ip}"
 }
 
