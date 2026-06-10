@@ -60,7 +60,7 @@ Expose only the ports you need from the WAN side. Keep `8199` private unless you
 | ENV | Default | Description |
 |---|---|---|
 | `PUBLIC_IP_MODE` | `auto` | `auto` detects the current public IP and reloads HAProxy when it changes. `fixed` always uses `PUBLIC_IP`. |
-| `PUBLIC_IP` | empty | Fixed public IP or fallback value when automatic detection fails. IPv4 and IPv6 are supported. |
+| `PUBLIC_IP` | empty | Fixed public IP or fallback value when automatic detection fails. IPv4 are supported. |
 | `IP_CHECK_INTERVAL` | `15` | Seconds between public IP checks in `auto` mode. |
 | `IP_CHANGE_STABLE_SECONDS` | `45` | New IP must stay unchanged for this many seconds before HAProxy reload. |
 | `SSL_DNS` | empty | Optional DNS SAN values passed to upstream certificate generation. |
