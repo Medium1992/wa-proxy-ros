@@ -39,6 +39,7 @@ PID_FILE="/run/haproxy.pid"
 IP_CHECK_INTERVAL="${IP_CHECK_INTERVAL:-15}"
 IP_CHANGE_STABLE_SECONDS="${IP_CHANGE_STABLE_SECONDS:-45}"
 PUBLIC_IP_MODE="${PUBLIC_IP_MODE:-fixed}"
+SHUTTING_DOWN=0
 
 function fetch() {
   curl --silent --fail --ipv4 --max-time 2 "$@"
@@ -47,6 +48,21 @@ function fetch() {
 function log() {
   echo "$@" >&2
 }
+
+function hard_shutdown() {
+  trap - TERM INT
+  if [[ "${SHUTTING_DOWN}" == "1" ]]; then
+      exit 0
+  fi
+  SHUTTING_DOWN=1
+  log "[PROXYHOST] Stop signal received, killing HAProxy and exiting..."
+  if [[ -s "${PID_FILE}" ]]; then
+      kill -KILL "$(cat "${PID_FILE}" 2>/dev/null)" >/dev/null 2>&1 || true
+  fi
+  exit 0
+}
+
+trap hard_shutdown TERM INT
 
 function is_valid_ip() {
   local ip="$1"
