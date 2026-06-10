@@ -22,6 +22,7 @@ RUN --mount=from=source,src=/src/repo/proxy/src,target=/tmp/src \
     install -Dm755 /tmp/src/set_public_ip_and_start.sh /usr/local/bin/set_public_ip_and_start.sh; \
     install -Dm755 /tmp/src/healthcheck.sh /usr/local/bin/healthcheck.sh; \
     install -Dm644 /tmp/src/proxy_config.cfg /usr/local/etc/haproxy/haproxy.cfg; \
+    sed -i '/^global$/a\  chroot /\n  user root' /usr/local/etc/haproxy/haproxy.cfg; \
     cp /usr/local/etc/haproxy/haproxy.cfg /usr/local/etc/haproxy/haproxy.cfg.template; \
     printf '%s\n' '#!/bin/bash' 'set -e' 'cp /usr/local/etc/haproxy/haproxy.cfg.template /usr/local/etc/haproxy/haproxy.cfg' 'rm -f /etc/haproxy/ssl/proxy.whatsapp.net.pem' 'echo "[PROXYHOST] HAProxy listen ports: 80/tcp, 8080/tcp, 443/tcp, 8443/tcp, 5222/tcp, 8222/tcp, 8199/tcp, 587/tcp, 7777/tcp"' 'exec /usr/local/bin/set_public_ip_and_start.sh' > /usr/local/bin/start_with_cfg_reset.sh; \
     chmod +x /usr/local/bin/start_with_cfg_reset.sh; \
@@ -37,10 +38,10 @@ CONFIG_TEMPLATE="/usr/local/etc/haproxy/haproxy.cfg.template"
 PID_FILE="/run/haproxy.pid"
 IP_CHECK_INTERVAL="${IP_CHECK_INTERVAL:-15}"
 IP_CHANGE_STABLE_SECONDS="${IP_CHANGE_STABLE_SECONDS:-45}"
-PUBLIC_IP_MODE="${PUBLIC_IP_MODE:-auto}"
+PUBLIC_IP_MODE="${PUBLIC_IP_MODE:-fixed}"
 
 function fetch() {
-  curl --silent --show-error --fail --ipv4 --max-time 2 "$@"
+  curl --silent --fail --ipv4 --max-time 2 "$@"
 }
 
 function log() {
@@ -60,7 +61,7 @@ function is_valid_ip() {
 
 function detect_public_ip() {
   local detected_ip=""
-  if [[ "${PUBLIC_IP_MODE}" == "fixed" && -n "${PUBLIC_IP}" ]]; then
+  if [[ "${PUBLIC_IP_MODE}" == "fixed" ]]; then
       detected_ip="${PUBLIC_IP}"
       detected_ip="$(echo -n "${detected_ip}" | tr -d '\r\n' | xargs)"
       echo "${detected_ip}"
@@ -158,6 +159,10 @@ while true; do
   fi
 
   latest_ip="$(detect_public_ip)"
+
+  if [[ -z "${latest_ip}" ]]; then
+      continue
+  fi
 
   if [[ "${latest_ip}" == "${current_ip}" ]]; then
       candidate_ip=""
