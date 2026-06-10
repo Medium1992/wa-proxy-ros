@@ -40,6 +40,7 @@ IP_CHECK_INTERVAL="${IP_CHECK_INTERVAL:-15}"
 IP_CHANGE_STABLE_SECONDS="${IP_CHANGE_STABLE_SECONDS:-45}"
 PUBLIC_IP_MODE="${PUBLIC_IP_MODE:-fixed}"
 SHUTTING_DOWN=0
+SLEEP_PID=""
 
 function fetch() {
   curl --silent --fail --ipv4 --max-time 2 "$@"
@@ -56,6 +57,9 @@ function hard_shutdown() {
   fi
   SHUTTING_DOWN=1
   log "[PROXYHOST] Stop signal received, killing HAProxy and exiting..."
+  if [[ -n "${SLEEP_PID}" ]]; then
+      kill -KILL "${SLEEP_PID}" >/dev/null 2>&1 || true
+  fi
   if [[ -s "${PID_FILE}" ]]; then
       kill -KILL "$(cat "${PID_FILE}" 2>/dev/null)" >/dev/null 2>&1 || true
   fi
@@ -63,6 +67,13 @@ function hard_shutdown() {
 }
 
 trap hard_shutdown TERM INT
+
+function sleep_interval() {
+  sleep "${IP_CHECK_INTERVAL}" &
+  SLEEP_PID="$!"
+  wait "${SLEEP_PID}" || true
+  SLEEP_PID=""
+}
 
 function is_valid_ip() {
   local ip="$1"
@@ -165,8 +176,7 @@ start_haproxy
 if [[ "${PUBLIC_IP_MODE}" == "fixed" ]]; then
     log "[PROXYHOST] PUBLIC_IP_MODE=fixed, external IP checks are disabled"
     while true; do
-      sleep "${IP_CHECK_INTERVAL}" &
-      wait "$!" || true
+      sleep_interval
 
       if [[ ! -s "${PID_FILE}" ]] || ! kill -0 "$(cat "${PID_FILE}" 2>/dev/null)" 2>/dev/null; then
           echo "[PROXYHOST] HAProxy process not found, starting again"
@@ -180,7 +190,7 @@ candidate_ip=""
 candidate_since=0
 
 while true; do
-  sleep "${IP_CHECK_INTERVAL}"
+  sleep_interval
 
   if [[ ! -s "${PID_FILE}" ]] || ! kill -0 "$(cat "${PID_FILE}" 2>/dev/null)" 2>/dev/null; then
       echo "[PROXYHOST] HAProxy process not found, starting again"
@@ -228,6 +238,5 @@ EOF
 
 RUN chmod +x /usr/local/bin/set_public_ip_and_start.sh
 
-STOPSIGNAL SIGKILL
 HEALTHCHECK --interval=10s --start-period=5s CMD bash /usr/local/bin/healthcheck.sh
 CMD ["/usr/local/bin/start_with_cfg_reset.sh"]
