@@ -59,8 +59,8 @@ HAProxy слушает:
 
 | ENV | По умолчанию | Описание |
 |---|---|---|
-| `PUBLIC_IP_MODE` | `auto` | `auto` определяет текущий public IP и делает reload HAProxy при смене. `fixed` всегда использует `PUBLIC_IP`. |
-| `PUBLIC_IP` | пусто | Фиксированный public IP или fallback, если автоопределение не сработало. Поддерживается IPv4. |
+| `PUBLIC_IP_MODE` | `fixed` | `fixed` всегда использует `PUBLIC_IP` и отключает внешние проверки IP. `auto` периодически определяет текущий public IP и делает reload HAProxy, если непустой IP изменился. |
+| `PUBLIC_IP` | пусто | Фиксированный public IP или fallback, если автоопределение не сработало. Поддерживаются IPv4 и IPv6. |
 | `IP_CHECK_INTERVAL` | `15` | Интервал проверки public IP в секундах. |
 | `IP_CHANGE_STABLE_SECONDS` | `45` | Сколько секунд новый IP должен быть стабильным перед reload HAProxy. |
 | `SSL_DNS` | пусто | Дополнительные DNS SAN для upstream-скрипта генерации сертификата. |
@@ -68,6 +68,8 @@ HAProxy слушает:
 | `DEBUG` | `1` | Debug-режим upstream-скрипта генерации сертификата. |
 
 Если public IP не удалось определить и `PUBLIC_IP` не задан, контейнер запускает HAProxy без правила `set-dst`, а не падает.
+
+Для использования только внутри локальной сети без определения public IP оставьте значение по умолчанию `PUBLIC_IP_MODE=fixed` и не задавайте `PUBLIC_IP`.
 
 ## 🛠 Установка В RouterOS
 
@@ -86,7 +88,6 @@ HAProxy слушает:
 /interface/veth/add name=WaProxyRoS address=192.168.255.22/30 gateway=192.168.255.21
 /ip/address/add address=192.168.255.21/30 interface=WaProxyRoS
 
-/container/envs/add list=WaProxyRoS key=PUBLIC_IP_MODE value=auto
 /container/envs/add list=WaProxyRoS key=IP_CHECK_INTERVAL value=15
 /container/envs/add list=WaProxyRoS key=IP_CHANGE_STABLE_SECONDS value=45
 
@@ -104,10 +105,18 @@ HAProxy слушает:
 /container/envs/add list=WaProxyRoS key=PUBLIC_IP value=203.0.113.10
 ```
 
+Для динамического определения public IP задайте:
+
+```routeros
+/container/envs/add list=WaProxyRoS key=PUBLIC_IP_MODE value=auto
+```
+
 ## 📝 Заметки
 
 - `PUBLIC_IP` не заставляет HAProxy слушать на этом адресе. Он управляет правилом HAProxy `tcp-request connection set-dst ...`, которое полезно при NAT, load balancer или другом внешнем входе.
-- В `auto` режиме public IP определяется через IPv4 check-IP сервисы. Если среда IPv6-only, лучше задать `PUBLIC_IP_MODE=fixed` и указать `PUBLIC_IP`.
+- В `auto` режиме public IP определяется через IPv4 check-IP сервисы каждые `IP_CHECK_INTERVAL` секунд. Если детект вернул пустое значение, текущий конфиг HAProxy остается без изменений.
+- Если среда IPv6-only, лучше задать `PUBLIC_IP_MODE=fixed` и указать `PUBLIC_IP`.
+- HAProxy намеренно запускается от root для RouterOS и портов ниже `1024`; в конфиге явно указаны `user root` и `chroot /`, чтобы убрать вводящие в заблуждение startup warning.
 - Reload HAProxy мягкий: новые подключения идут в новый процесс, существующие соединения доживают в старом.
 - Образ сохраняет upstream-конфиг WhatsApp Proxy, но меняет права/пути/старт процессов под RouterOS.
 

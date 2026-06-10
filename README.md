@@ -59,8 +59,8 @@ Expose only the ports you need from the WAN side. Keep `8199` private unless you
 
 | ENV | Default | Description |
 |---|---|---|
-| `PUBLIC_IP_MODE` | `auto` | `auto` detects the current public IP and reloads HAProxy when it changes. `fixed` always uses `PUBLIC_IP`. |
-| `PUBLIC_IP` | empty | Fixed public IP or fallback value when automatic detection fails. IPv4 are supported. |
+| `PUBLIC_IP_MODE` | `fixed` | `fixed` always uses `PUBLIC_IP` and disables external IP checks. `auto` periodically detects the current public IP and reloads HAProxy when a non-empty IP changes. |
+| `PUBLIC_IP` | empty | Fixed public IP or fallback value when automatic detection fails. IPv4 and IPv6 are supported. |
 | `IP_CHECK_INTERVAL` | `15` | Seconds between public IP checks in `auto` mode. |
 | `IP_CHANGE_STABLE_SECONDS` | `45` | New IP must stay unchanged for this many seconds before HAProxy reload. |
 | `SSL_DNS` | empty | Optional DNS SAN values passed to upstream certificate generation. |
@@ -68,6 +68,8 @@ Expose only the ports you need from the WAN side. Keep `8199` private unless you
 | `DEBUG` | `1` | Upstream certificate script debug mode. |
 
 If no public IP can be detected and `PUBLIC_IP` is empty, the container starts HAProxy without the `set-dst` rule instead of failing.
+
+For local-only use without public IP detection, keep the default `PUBLIC_IP_MODE=fixed` and leave `PUBLIC_IP` empty.
 
 ## 🛠 RouterOS Install
 
@@ -86,7 +88,6 @@ Example container interface and environment:
 /interface/veth/add name=WaProxyRoS address=192.168.255.22/30 gateway=192.168.255.21
 /ip/address/add address=192.168.255.21/30 interface=WaProxyRoS
 
-/container/envs/add list=WaProxyRoS key=PUBLIC_IP_MODE value=auto
 /container/envs/add list=WaProxyRoS key=IP_CHECK_INTERVAL value=15
 /container/envs/add list=WaProxyRoS key=IP_CHANGE_STABLE_SECONDS value=45
 
@@ -104,10 +105,18 @@ For a static public IP, use:
 /container/envs/add list=WaProxyRoS key=PUBLIC_IP value=203.0.113.10
 ```
 
+For dynamic public IP detection, set:
+
+```routeros
+/container/envs/add list=WaProxyRoS key=PUBLIC_IP_MODE value=auto
+```
+
 ## 📝 Notes
 
 - `PUBLIC_IP` does not make HAProxy listen on that address. It controls HAProxy `tcp-request connection set-dst ...`, which helps when traffic is forwarded through NAT, a load balancer, or another edge path.
-- In `auto` mode the image detects public IPv4 through common check-IP services. If your environment is IPv6-only, set `PUBLIC_IP_MODE=fixed` and provide `PUBLIC_IP`.
+- In `auto` mode the image detects public IPv4 through common check-IP services every `IP_CHECK_INTERVAL` seconds. If detection returns an empty value, the current HAProxy config is kept unchanged.
+- If your environment is IPv6-only, set `PUBLIC_IP_MODE=fixed` and provide `PUBLIC_IP`.
+- HAProxy intentionally runs as root for RouterOS privileged-port publishing; the config declares `user root` and `chroot /` explicitly to avoid misleading startup warnings.
 - HAProxy reload is soft: new connections move to the new process, while existing sessions are allowed to drain.
 - The image follows upstream WhatsApp Proxy config, but keeps process ownership and paths suitable for RouterOS containers.
 
