@@ -3,17 +3,11 @@ name: Build and Publish
 on:
   schedule:
     - cron: "0 15 * * *" # 20:00 UTC
-  push:
-    branches:
-      - main
-    paths:
-      - Dockerfile
-      - .github/workflows/docker-image.yml
   workflow_dispatch:
 
 concurrency:
   group: wa-proxy-ros-publish
-  cancel-in-progress: true
+  cancel-in-progress: false
 
 jobs:
   check-and-build:
