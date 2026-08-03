@@ -1,4 +1,4 @@
-FROM alpine:3.22 AS source
+FROM alpine:latest AS source
 
 ARG UPSTREAM_REPO="https://github.com/WhatsApp/proxy.git"
 ARG UPSTREAM_REF="main"
