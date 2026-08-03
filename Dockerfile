@@ -32,7 +32,5 @@ RUN --mount=from=source,src=/src/repo/proxy/src,target=/tmp/src \
 
 USER root
 
-EXPOSE 80/tcp 8080/tcp 443/tcp 8443/tcp 5222/tcp 8222/tcp 8199/tcp 587/tcp 7777/tcp
-
 HEALTHCHECK --interval=10s --start-period=5s CMD bash /usr/local/bin/healthcheck.sh
 CMD ["/usr/local/bin/start.sh"]
