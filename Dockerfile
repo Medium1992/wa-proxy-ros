@@ -30,7 +30,7 @@ RUN --mount=from=source,src=/src/repo/proxy/src,target=/tmp/src \
     chown -R haproxy:haproxy /etc/haproxy /home/haproxy/certs; \
     haproxy -c -V -f /usr/local/etc/haproxy/haproxy.cfg
 
-USER haproxy
+USER root
 
 EXPOSE 80/tcp 8080/tcp 443/tcp 8443/tcp 5222/tcp 8222/tcp 8199/tcp 587/tcp 7777/tcp
 
