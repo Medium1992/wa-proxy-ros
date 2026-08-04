@@ -9,14 +9,16 @@
 [![Docker Pulls](https://img.shields.io/docker/pulls/medium1992/wa-proxy-ros?logo=docker&label=docker%20pulls)](https://hub.docker.com/r/medium1992/wa-proxy-ros)
 [![Docker Image Size](https://img.shields.io/docker/image-size/medium1992/wa-proxy-ros/latest?logo=docker&label=image%20size)](https://hub.docker.com/r/medium1992/wa-proxy-ros)
 [![License](https://img.shields.io/github/license/Medium1992/wa-proxy-ros)](./LICENSE)
-![Platforms](https://img.shields.io/badge/arch-amd64%20%7C%20arm64%20%7C%20armv7-blue)
+![Platforms](https://img.shields.io/badge/arch-amd64%20%7C%20arm64%20%7C%20armv7%20%7C%20armv5-blue)
 
 ## Возможности
 
-- Образы для `amd64`, `arm64` и `arm/v7`.
+- Образы для `amd64`, `arm64`, `arm/v7` и `arm/v5`.
+- Для `amd64`, `arm64` и `arm/v7` используется минимальный runtime на `alpine:latest`; для `arm/v5` — встроенный Buildroot rootfs.
 - Используются актуальные upstream-конфиг WhatsApp Proxy, скрипт запуска, генератор сертификата и healthcheck.
 - Контейнер и процесс HAProxy работают от `root`.
 - Самоподписанный сертификат генерируется при старте контейнера.
+- При остановке контейнер завершается быстро и с кодом `0`.
 - Нет кастомного определения public IP, переменных `PUBLIC_IP` и подстановки HAProxy `set-dst`.
 
 ## Теги образов
