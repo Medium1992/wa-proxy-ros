@@ -19,6 +19,20 @@ RUN apk add --no-cache git ca-certificates \
     cp proxy/src/start.sh /runtime/usr/local/bin/start.sh; \
     cp proxy/src/healthcheck.sh /runtime/usr/local/bin/healthcheck.sh; \
     cp proxy/src/proxy_config.cfg /runtime/usr/local/etc/haproxy/haproxy.cfg; \
+    printf '%s\n' \
+      '#!/bin/sh' \
+      'SHUTTING_DOWN=0' \
+      'fast_shutdown() {' \
+      '  trap - TERM INT' \
+      '  [ "$SHUTTING_DOWN" = 1 ] && exit 0' \
+      '  SHUTTING_DOWN=1' \
+      '  exit 0' \
+      '}' \
+      'trap fast_shutdown TERM INT' \
+      '/usr/local/bin/start.sh &' \
+      'PROXY_PID=$!' \
+      'wait "$PROXY_PID"' \
+      'exit $?' > /runtime/usr/local/bin/entrypoint.sh; \
     chmod 755 /runtime/usr/local/bin/*.sh
 
 FROM --platform=linux/amd64 alpine:latest AS linux-amd64
@@ -38,4 +52,4 @@ USER root
 COPY --from=source /runtime/ /
 
 HEALTHCHECK --interval=10s --start-period=5s CMD bash /usr/local/bin/healthcheck.sh
-CMD ["/usr/local/bin/start.sh"]
+CMD ["/usr/local/bin/entrypoint.sh"]
