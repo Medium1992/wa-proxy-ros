@@ -9,14 +9,16 @@ The image tracks the upstream release named in `VERSIONS`. It retains the curren
 [![Docker Pulls](https://img.shields.io/docker/pulls/medium1992/wa-proxy-ros?logo=docker&label=docker%20pulls)](https://hub.docker.com/r/medium1992/wa-proxy-ros)
 [![Docker Image Size](https://img.shields.io/docker/image-size/medium1992/wa-proxy-ros/latest?logo=docker&label=image%20size)](https://hub.docker.com/r/medium1992/wa-proxy-ros)
 [![License](https://img.shields.io/github/license/Medium1992/wa-proxy-ros)](./LICENSE)
-![Platforms](https://img.shields.io/badge/arch-amd64%20%7C%20arm64%20%7C%20armv7-blue)
+![Platforms](https://img.shields.io/badge/arch-amd64%20%7C%20arm64%20%7C%20armv7%20%7C%20armv5-blue)
 
 ## Features
 
-- Multi-architecture images: `amd64`, `arm64`, and `arm/v7`.
+- Multi-architecture images: `amd64`, `arm64`, `arm/v7`, and `arm/v5`.
+- `amd64`, `arm64`, and `arm/v7` use a minimal `alpine:latest` runtime; `arm/v5` uses the bundled Buildroot rootfs.
 - Uses the current upstream WhatsApp Proxy configuration, certificate generator, startup script, and health check.
 - Runs as `root`, including the HAProxy process.
 - Generates a self-signed certificate at container startup.
+- Stops immediately and cleanly on a container stop signal.
 - No custom public-IP detection, `PUBLIC_IP`, or HAProxy `set-dst` rewriting.
 
 ## Image tags
