@@ -111,7 +111,7 @@ jobs:
         with:
           context: .
           file: ./Dockerfile
-          platforms: linux/amd64,linux/arm64,linux/arm/v7
+          platforms: linux/amd64,linux/arm64,linux/arm/v7,linux/arm/v5
           push: true
           build-args: |
             UPSTREAM_REF=${{ steps.latest_versions.outputs.whatsapp_proxy }}
@@ -182,6 +182,7 @@ jobs:
           export_image "amd64" "linux/amd64" "${IMAGE_REPO}:${IMAGE_VERSION}"
           export_image "arm64" "linux/arm64" "${IMAGE_REPO}:${IMAGE_VERSION}"
           export_image "armv7" "linux/arm/v7" "${IMAGE_REPO}:${IMAGE_VERSION}"
+          export_image "armv5" "linux/arm/v5" "${IMAGE_REPO}:${IMAGE_VERSION}"
 
           sha256sum telegram-images/*.tar.gz > telegram-images/sha256sums.txt
 
