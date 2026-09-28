@@ -85,4 +85,3 @@ Workflow по расписанию проверяет новый upstream-рел
 ## Поддержка проекта
 
 - **USDT (TRC20):** `TWDDYD1nk5JnG6FxvEu2fyFqMCY9PcdEsJ`
-

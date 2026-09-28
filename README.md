@@ -85,4 +85,3 @@ Point WhatsApp to the container address, or forward only the required ports to i
 ## Support
 
 - **USDT (TRC20):** `TWDDYD1nk5JnG6FxvEu2fyFqMCY9PcdEsJ`
-
