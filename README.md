@@ -14,7 +14,7 @@ The image tracks the upstream release named in `VERSIONS`. It retains the curren
 ## Features
 
 - Multi-architecture images: `amd64`, `arm64`, `arm/v7`, and `arm/v5`.
-- `amd64`, `arm64`, and `arm/v7` use a minimal `alpine:latest` runtime; `arm/v5` uses the bundled Buildroot rootfs.
+- `amd64`, `arm64`, and `arm/v7` use a minimal `alpine:latest` runtime; `arm/v5` uses the bundled Buildroot rootfs. It is rebuilt with `docker build -f buildroot/Dockerfile --output type=local,dest=. buildroot`.
 - Uses the current upstream WhatsApp Proxy configuration, certificate generator, startup script, and health check.
 - Runs as `root`, including the HAProxy process.
 - Generates a self-signed certificate at container startup.

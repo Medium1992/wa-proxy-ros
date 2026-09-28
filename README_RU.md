@@ -14,7 +14,7 @@
 ## Возможности
 
 - Образы для `amd64`, `arm64`, `arm/v7` и `arm/v5`.
-- Для `amd64`, `arm64` и `arm/v7` используется минимальный runtime на `alpine:latest`; для `arm/v5` — встроенный Buildroot rootfs.
+- Для `amd64`, `arm64` и `arm/v7` используется минимальный runtime на `alpine:latest`; для `arm/v5` — встроенный Buildroot rootfs. Пересборка: `docker build -f buildroot/Dockerfile --output type=local,dest=. buildroot`.
 - Используются актуальные upstream-конфиг WhatsApp Proxy, скрипт запуска, генератор сертификата и healthcheck.
 - Контейнер и процесс HAProxy работают от `root`.
 - Самоподписанный сертификат генерируется при старте контейнера.
